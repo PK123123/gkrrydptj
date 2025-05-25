@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>장미와 강아지 인식기</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #f0f4f8;
+            color: #333;
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        p.instruction {
+            font-size: 16px;
+            color: #555;
+            margin-bottom: 25px;
+        }
+
+        #webcam-container {
+            margin: 0 auto 20px;
+            width: 220px;
+            height: 220px;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #ddd;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        #label-container {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .label {
+            background: #fff;
+            padding: 10px 18px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+            font-size: 15px;
+        }
+
+        button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🧠 장미와 강아지를 인식하는 인공지능</h1>
+    <p class="instruction">📱 휴대폰으로 <strong>장미 그림</strong>이나 <strong>강아지 사진</strong>을 검색해서 카메라에 보여주세요!</p>
+
+    <button onclick="init()">📷 카메라 시작</button>
+    <div id="webcam-container"></div>
+    <div id="label-container"></div>
+
+    <script type="text/javascript">
+        const URL = "https://teachablemachine.withgoogle.com/models/cQI-UiLfi/";
+
+        let model, webcam, labelContainer, maxPredictions;
+
+        async function init() {
+            try {
+                const modelURL = URL + "model.json";
+                const metadataURL = URL + "metadata.json";
+
+                // 모델 불러오기
+                model = await tmImage.load(modelURL, metadataURL);
+                maxPredictions = model.getTotalClasses();
+
+                // 웹캠 설정
+                const flip = true;
+                webcam = new tmImage.Webcam(200, 200, flip);
+                await webcam.setup(); // 카메라 접근 권한 요청
+                await webcam.play();
+                window.requestAnimationFrame(loop);
+
+                document.getElementById("webcam-container").innerHTML = "";
+                document.getElementById("webcam-container").appendChild(webcam.canvas);
+
+                // 라벨 영역 초기화
+                labelContainer = document.getElementById("label-container");
+                labelContainer.innerHTML = "";
+                for (let i = 0; i < maxPredictions; i++) {
+                    const div = document.createElement("div");
+                    div.className = "label";
+                    labelContainer.appendChild(div);
+                }
+            } catch (error) {
+                console.error("카메라 초기화 실패:", error);
+                alert("❗카메라 접근에 실패했습니다.\n브라우저가 카메라 권한을 허용했는지 확인해주세요.");
+            }
+        }
+
+        async function loop() {
+            webcam.update();
+            await predict();
+            window.requestAnimationFrame(loop);
+        }
+
+        async function predict() {
+            const prediction = await model.predict(webcam.canvas);
+            for (let i = 0; i < maxPredictions; i++) {
+                const result = `${prediction[i].className}: ${(prediction[i].probability * 100).toFixed(1)}%`;
+                labelContainer.childNodes[i].innerHTML = result;
+            }
+        }
+    </script>
+</body>
+</html>
